@@ -65,7 +65,8 @@ type alias Model =
 
 
 type Msg
-    = AddEntry
+    = Initialized (List Entry)
+    | AddEntry
     | EntryAdded Entry
     | EntryTitleChanged ID Title
     | EntryStatusChanged ID Status
@@ -75,12 +76,16 @@ type Msg
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { entries = Dict.empty, error = "" }, Cmd.none )
+    ( { entries = Dict.empty, error = "" }, getAllEntries )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+
+        Initialized entries ->
+            ( { model | entries = map (\entry -> ( entry.id, entry )) entries |> Dict.fromList }, Cmd.none )
+
         AddEntry ->
             ( { model | error = "" }, createEntry )
 
@@ -142,16 +147,25 @@ subscriptions _ =
     Sub.none
 
 
+createEntry : Cmd Msg
 createEntry =
     Http.post
         { url = "https://60662038b8fbbd0017568155.mockapi.io/todos"
         , body = Http.emptyBody
-        , expect = Http.expectJson processResult entryDecoder
+        , expect = Http.expectJson processEntryCreationResult entryDecoder
         }
 
 
-processResult : Result Http.Error Entry -> Msg
-processResult res =
+getAllEntries : Cmd Msg
+getAllEntries =
+    Http.get
+        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos"
+        , expect = Http.expectJson processAllEntriesResult entriesDecoder
+        }
+
+
+processEntryCreationResult : Result Http.Error Entry -> Msg
+processEntryCreationResult res =
     case res of
         Err e ->
             case e of
@@ -163,6 +177,26 @@ processResult res =
 
         Ok entry ->
             EntryAdded entry
+
+
+processAllEntriesResult : Result Http.Error (List Entry) -> Msg
+processAllEntriesResult res =
+    case res of
+        Err e ->
+            case e of
+                Http.BadBody d ->
+                    ErrorOccured d
+
+                _ ->
+                    ErrorOccured "Some error occured"
+
+        Ok entries ->
+            Initialized entries
+
+
+entriesDecoder : Json.Decode.Decoder (List Entry)
+entriesDecoder =
+    Json.Decode.list entryDecoder
 
 
 entryDecoder : Json.Decode.Decoder Entry
