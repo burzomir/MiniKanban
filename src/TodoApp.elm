@@ -3,11 +3,11 @@ module TodoApp exposing (..)
 import Browser
 import Dict exposing (Dict)
 import Html exposing (Html, button, div, input, text)
-import Html.Attributes exposing (value)
+import Html.Attributes exposing (style, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode
-import List exposing (map, maximum)
+import List exposing (map)
 import Maybe exposing (Maybe(..))
 
 
@@ -34,8 +34,34 @@ type alias Entry =
     { id : ID, title : Title, status : Status }
 
 
-type alias Model =
+type alias EntriesCollection =
     Dict ID Entry
+
+
+insertEntry : Entry -> EntriesCollection -> EntriesCollection
+insertEntry entry =
+    Dict.insert entry.id entry
+
+
+changeEntryTitle : ID -> Title -> EntriesCollection -> EntriesCollection
+changeEntryTitle id title =
+    Dict.update id (Maybe.map (\v -> { v | title = title }))
+
+
+changeEntryStatus : ID -> Status -> EntriesCollection -> EntriesCollection
+changeEntryStatus id status =
+    Dict.update id (Maybe.map (\v -> { v | status = status }))
+
+
+deleteEntry : ID -> EntriesCollection -> EntriesCollection
+deleteEntry =
+    Dict.remove
+
+
+type alias Model =
+    { entries : Dict ID Entry
+    , error : String
+    }
 
 
 type Msg
@@ -44,43 +70,49 @@ type Msg
     | EntryTitleChanged ID Title
     | EntryStatusChanged ID Status
     | EntryDeleted ID
-    | ErrorOccured
+    | ErrorOccured String
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Dict.empty, Cmd.none )
+    ( { entries = Dict.empty, error = "" }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddEntry ->
-            ( model, createEntry )
+            ( { model | error = "" }, createEntry )
 
         EntryAdded entry ->
-            ( Dict.insert entry.id entry model, Cmd.none )
+            ( { model | entries = insertEntry entry model.entries, error = "" }, Cmd.none )
 
         EntryTitleChanged id title ->
-            ( Dict.update id (Maybe.map (\v -> { v | title = title })) model, Cmd.none )
+            ( { model | entries = changeEntryTitle id title model.entries, error = "" }, Cmd.none )
 
         EntryStatusChanged id status ->
-            ( Dict.update id (Maybe.map (\v -> { v | status = status })) model, Cmd.none )
+            ( { model | entries = changeEntryStatus id status model.entries, error = "" }, Cmd.none )
 
         EntryDeleted id ->
-            ( Dict.remove id model, Cmd.none )
+            ( { model | entries = deleteEntry id model.entries, error = "" }, Cmd.none )
 
-        ErrorOccured ->
-            ( model, Cmd.none )
+        ErrorOccured error ->
+            ( { model | error = error }, Cmd.none )
 
 
 view : Model -> Html Msg
 view model =
     let
         entries =
-            Dict.values model |> map viewEntry
+            Dict.values model.entries |> map viewEntry
+
+        buttons =
+            [ div [] [ button [ onClick AddEntry ] [ text "Add" ] ] ]
+
+        errors =
+            [ div [ style "color" "red" ] [ text model.error ] ]
     in
-    div [] (List.append entries [ div [] [ button [ onClick AddEntry ] [ text "Add" ] ] ])
+    div [] (entries ++ buttons ++ errors)
 
 
 viewEntry : Entry -> Html Msg
@@ -119,8 +151,18 @@ createEntry =
 
 
 processResult : Result Http.Error Entry -> Msg
-processResult =
-    Result.map EntryAdded >> Result.withDefault ErrorOccured
+processResult res =
+    case res of
+        Err e ->
+            case e of
+                Http.BadBody d ->
+                    ErrorOccured d
+
+                _ ->
+                    ErrorOccured "Some error occured"
+
+        Ok entry ->
+            EntryAdded entry
 
 
 entryDecoder : Json.Decode.Decoder Entry
