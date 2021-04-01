@@ -9,9 +9,9 @@ import List exposing (map, maximum)
 import Maybe exposing (Maybe(..))
 
 
-main : Program () (Model) Msg
+main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, view = view, update = update }
+    Browser.element { init = init, subscriptions = subscriptions, view = view, update = update }
 
 
 type Status
@@ -43,12 +43,12 @@ type Msg
     | EntryDeleted ID
 
 
-init : Model
-init =
-    Dict.empty
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( Dict.empty, Cmd.none )
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         EntryAdded ->
@@ -56,16 +56,16 @@ update msg model =
                 id =
                     Dict.values model |> map .id |> maximum |> Maybe.withDefault 0 |> (\v -> v + 1)
             in
-            Dict.insert id (Entry id "" Todo) model
+            ( Dict.insert id (Entry id "" Todo) model, Cmd.none )
 
         EntryTitleChanged id title ->
-            Dict.update id (Maybe.map (\v -> { v | title = title })) model
+            ( Dict.update id (Maybe.map (\v -> { v | title = title })) model, Cmd.none )
 
         EntryStatusChanged id status ->
-            Dict.update id (Maybe.map (\v -> { v | status = status })) model
+            ( Dict.update id (Maybe.map (\v -> { v | status = status })) model, Cmd.none )
 
         EntryDeleted id ->
-            Dict.remove id model
+            ( Dict.remove id model, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -97,3 +97,8 @@ viewEntry entry =
         , actionButton
         , button [ onClick (EntryDeleted entry.id) ] [ text "Delete" ]
         ]
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
