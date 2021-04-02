@@ -1,0 +1,19 @@
+{
+  "name": "guide",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "parcel index.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "elm-hot": "^1.1.6",
+    "node-elm-compiler": "^5.0.5",
+    "parcel-bundler": "^1.12.5"
+  },
+  "dependencies": {}
+}
