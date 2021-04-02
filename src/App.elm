@@ -4,7 +4,7 @@ import Browser
 import Dict
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
-import Html exposing (Html, button, div, input, text)
+import Html exposing (Html, button, div, h3, input, text)
 import Html.Attributes exposing (style, value)
 import Html.Events exposing (onClick, onInput)
 import List exposing (map)
@@ -92,7 +92,7 @@ view : Model -> Html Msg
 view model =
     let
         entries =
-            Dict.values model.entries |> map viewEntry
+            Dict.values model.entries
 
         buttons =
             [ div [] [ button [ onClick AddEntry ] [ text "Add" ] ] ]
@@ -100,7 +100,19 @@ view model =
         errors =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
-    div [] (entries ++ buttons ++ errors)
+    div []
+        [ div [ style "display" "flex" ]
+            [ viewLane entries Todo "Todo"
+            , viewLane entries InProgress "In progress"
+            , viewLane entries Done "Done"
+            ]
+        , div [] <| buttons ++ errors
+        ]
+
+
+viewLane : List Entry -> Status -> String -> Html Msg
+viewLane entries status header =
+    div [] <| h3 [] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries)
 
 
 viewEntry : Entry -> Html Msg
