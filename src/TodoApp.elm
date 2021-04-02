@@ -7,6 +7,7 @@ import Html.Attributes exposing (style, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode
+import Json.Encode
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 
@@ -58,6 +59,11 @@ deleteEntry =
     Dict.remove
 
 
+getEntry : ID -> EntriesCollection -> Maybe Entry
+getEntry =
+    Dict.get
+
+
 type alias Model =
     { entries : Dict ID Entry
     , error : String
@@ -72,17 +78,19 @@ type Msg
     | EntryStatusChanged ID Status
     | EntryDeleted ID
     | ErrorOccured String
+    | NothingHappenned
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { entries = Dict.empty, error = "" }, getAllEntries )
+    ( { entries = Dict.empty, error = "" }
+    , getAllEntries
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-
         Initialized entries ->
             ( { model | entries = map (\entry -> ( entry.id, entry )) entries |> Dict.fromList }, Cmd.none )
 
@@ -93,16 +101,33 @@ update msg model =
             ( { model | entries = insertEntry entry model.entries, error = "" }, Cmd.none )
 
         EntryTitleChanged id title ->
-            ( { model | entries = changeEntryTitle id title model.entries, error = "" }, Cmd.none )
+            let
+                entries =
+                    changeEntryTitle id title model.entries
+
+                cmd =
+                    getEntry id entries |> Maybe.map updateEntry |> Maybe.withDefault Cmd.none
+            in
+            ( { model | entries = entries, error = "" }, cmd )
 
         EntryStatusChanged id status ->
-            ( { model | entries = changeEntryStatus id status model.entries, error = "" }, Cmd.none )
+            let
+                entries =
+                    changeEntryStatus id status model.entries
+
+                cmd =
+                    getEntry id entries |> Maybe.map updateEntry |> Maybe.withDefault Cmd.none
+            in
+            ( { model | entries = entries, error = "" }, cmd )
 
         EntryDeleted id ->
             ( { model | entries = deleteEntry id model.entries, error = "" }, Cmd.none )
 
         ErrorOccured error ->
             ( { model | error = error }, Cmd.none )
+
+        NothingHappenned ->
+            ( model, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -156,14 +181,6 @@ createEntry =
         }
 
 
-getAllEntries : Cmd Msg
-getAllEntries =
-    Http.get
-        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos"
-        , expect = Http.expectJson processAllEntriesResult entriesDecoder
-        }
-
-
 processEntryCreationResult : Result Http.Error Entry -> Msg
 processEntryCreationResult res =
     case res of
@@ -177,6 +194,14 @@ processEntryCreationResult res =
 
         Ok entry ->
             EntryAdded entry
+
+
+getAllEntries : Cmd Msg
+getAllEntries =
+    Http.get
+        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos"
+        , expect = Http.expectJson processAllEntriesResult entriesDecoder
+        }
 
 
 processAllEntriesResult : Result Http.Error (List Entry) -> Msg
@@ -194,6 +219,34 @@ processAllEntriesResult res =
             Initialized entries
 
 
+updateEntry : Entry -> Cmd Msg
+updateEntry entry =
+    Http.request
+        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos/" ++ entry.id
+        , method = "PUT"
+        , headers = []
+        , body = Http.jsonBody <| entryEncoder entry
+        , expect = Http.expectJson processUpdateEntryResult entryDecoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+processUpdateEntryResult : Result Http.Error Entry -> Msg
+processUpdateEntryResult res =
+    case res of
+        Err e ->
+            case e of
+                Http.BadBody d ->
+                    ErrorOccured d
+
+                _ ->
+                    ErrorOccured "Some error occured"
+
+        Ok _ ->
+            NothingHappenned
+
+
 entriesDecoder : Json.Decode.Decoder (List Entry)
 entriesDecoder =
     Json.Decode.list entryDecoder
@@ -202,6 +255,31 @@ entriesDecoder =
 entryDecoder : Json.Decode.Decoder Entry
 entryDecoder =
     Json.Decode.map3 Entry idDecoder titleDecoder statusDecoder
+
+
+entryEncoder : Entry -> Json.Encode.Value
+entryEncoder entry =
+    Json.Encode.object
+        [ ( "title", Json.Encode.string entry.title )
+        , ( "status", statusEncoder entry.status )
+        ]
+
+
+statusEncoder : Status -> Json.Encode.Value
+statusEncoder status =
+    let
+        s =
+            case status of
+                Todo ->
+                    "Todo"
+
+                InProgress ->
+                    "InProgress"
+
+                Done ->
+                    "Done"
+    in
+    Json.Encode.string s
 
 
 idDecoder : Json.Decode.Decoder ID
