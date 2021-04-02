@@ -121,7 +121,7 @@ update msg model =
             ( { model | entries = entries, error = "" }, cmd )
 
         EntryDeleted id ->
-            ( { model | entries = deleteEntry id model.entries, error = "" }, Cmd.none )
+            ( { model | entries = deleteEntry id model.entries, error = "" }, deleteEntryFromApi id )
 
         ErrorOccured error ->
             ( { model | error = error }, Cmd.none )
@@ -234,6 +234,34 @@ updateEntry entry =
 
 processUpdateEntryResult : Result Http.Error Entry -> Msg
 processUpdateEntryResult res =
+    case res of
+        Err e ->
+            case e of
+                Http.BadBody d ->
+                    ErrorOccured d
+
+                _ ->
+                    ErrorOccured "Some error occured"
+
+        Ok _ ->
+            NothingHappenned
+
+
+deleteEntryFromApi : ID -> Cmd Msg
+deleteEntryFromApi id =
+    Http.request
+        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos/" ++ id
+        , method = "DELETE"
+        , headers = []
+        , body = Http.emptyBody
+        , expect = Http.expectJson processUpdateEntryResult entryDecoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+processDeleteEntryResult : Result Http.Error Entry -> Msg
+processDeleteEntryResult res =
     case res of
         Err e ->
             case e of
