@@ -5,8 +5,9 @@ import Dict
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
 import Html exposing (Html, button, div, h3, input, text)
-import Html.Attributes exposing (style, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Attributes exposing (draggable, style, value)
+import Html.Events exposing (on, onClick, onInput, preventDefaultOn)
+import Json.Decode
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 
@@ -19,6 +20,7 @@ run repo =
 type alias Model =
     { entries : EntriesCollection.EntriesCollection
     , error : String
+    , liftedEntry : Maybe ID
     }
 
 
@@ -31,11 +33,13 @@ type Msg
     | EntryDeleted ID
     | ErrorOccured String
     | NothingHappenned
+    | EntryLifted ID
+    | EntryDropped Status
 
 
 init : EntriesRepo String Msg -> () -> ( Model, Cmd Msg )
 init repo _ =
-    ( { entries = Dict.empty, error = "" }
+    ( { entries = Dict.empty, error = "", liftedEntry = Nothing }
     , repo.getAll ErrorOccured Initialized
     )
 
@@ -87,6 +91,26 @@ update repo msg model =
         NothingHappenned ->
             ( model, Cmd.none )
 
+        EntryLifted id ->
+            ( { model | liftedEntry = Just id }, Cmd.none )
+
+        EntryDropped status ->
+            case model.liftedEntry of
+                Nothing ->
+                    ( { model | liftedEntry = Nothing }, Cmd.none )
+
+                Just id ->
+                    let
+                        entries =
+                            EntriesCollection.changeEntryStatus id status model.entries
+
+                        cmd =
+                            EntriesCollection.getEntry id entries
+                                |> Maybe.map (repo.update ErrorOccured (\_ -> NothingHappenned))
+                                |> Maybe.withDefault Cmd.none
+                    in
+                    ( { model | entries = entries, error = "" }, cmd )
+
 
 view : Model -> Html Msg
 view model =
@@ -112,7 +136,11 @@ view model =
 
 viewLane : List Entry -> Status -> String -> Html Msg
 viewLane entries status header =
-    div [] <| h3 [] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries)
+    div
+        [ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
+        , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped status, True ))
+        ]
+        (h3 [] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries))
 
 
 viewEntry : Entry -> Html Msg
@@ -129,7 +157,7 @@ viewEntry entry =
                 Done ->
                     text ""
     in
-    div []
+    div [ draggable "true", on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id) ]
         [ text entry.id
         , input [ value entry.title, onInput (EntryTitleChanged entry.id) ] []
         , actionButton
