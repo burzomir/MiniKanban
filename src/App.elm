@@ -10,6 +10,7 @@ import Html.Events exposing (on, onClick, onInput, preventDefaultOn)
 import Json.Decode
 import List exposing (map)
 import Maybe exposing (Maybe(..))
+import Html.Attributes exposing (title)
 
 
 run : EntriesRepo String Msg -> Program () Model Msg
@@ -116,7 +117,7 @@ view : Model -> Html Msg
 view model =
     let
         entries =
-            Dict.values model.entries
+            Dict.values model.entries |> List.sortBy (.title)
 
         buttons =
             [ div [] [ button [ onClick AddEntry ] [ text "Add" ] ] ]
@@ -145,23 +146,9 @@ viewLane entries status header =
 
 viewEntry : Entry -> Html Msg
 viewEntry entry =
-    let
-        actionButton =
-            case entry.status of
-                Todo ->
-                    button [ onClick (EntryStatusChanged entry.id InProgress) ] [ text "Start progress" ]
-
-                InProgress ->
-                    button [ onClick (EntryStatusChanged entry.id Done) ] [ text "Finish" ]
-
-                Done ->
-                    text ""
-    in
     div [ draggable "true", on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id) ]
-        [ text entry.id
-        , input [ value entry.title, onInput (EntryTitleChanged entry.id) ] []
-        , actionButton
-        , button [ onClick (EntryDeleted entry.id) ] [ text "Delete" ]
+        [ input [ value entry.title, onInput (EntryTitleChanged entry.id) ] []
+        , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
         ]
 
 
