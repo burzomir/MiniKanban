@@ -5,12 +5,11 @@ import Dict
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
 import Html exposing (Html, button, div, h3, input, text)
-import Html.Attributes exposing (draggable, style, value)
+import Html.Attributes exposing (class, draggable, style, title, value)
 import Html.Events exposing (on, onClick, onInput, preventDefaultOn)
 import Json.Decode
 import List exposing (map)
 import Maybe exposing (Maybe(..))
-import Html.Attributes exposing (title)
 
 
 run : EntriesRepo String Msg -> Program () Model Msg
@@ -117,10 +116,10 @@ view : Model -> Html Msg
 view model =
     let
         entries =
-            Dict.values model.entries |> List.sortBy (.title)
+            Dict.values model.entries |> List.sortBy .title
 
         buttons =
-            [ div [] [ button [ onClick AddEntry ] [ text "Add" ] ] ]
+            [ div [class "p-1"] [ button [ class "ring rounded-md font-semibold text-white bg-blue-500 ring p-1", onClick AddEntry ] [ text "Add" ] ] ]
 
         errors =
             [ div [ style "color" "red" ] [ text model.error ] ]
@@ -141,12 +140,16 @@ viewLane entries status header =
         [ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
         , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped status, True ))
         ]
-        (h3 [] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries))
+        (h3 [class "text-xl p-1"] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries))
 
 
 viewEntry : Entry -> Html Msg
 viewEntry entry =
-    div [ draggable "true", on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id) ]
+    div
+        [ draggable "true"
+        , on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id)
+        , class "border rounded border-gray-300 m-1 p-1"
+        ]
         [ input [ value entry.title, onInput (EntryTitleChanged entry.id) ] []
         , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
         ]
