@@ -1,7 +1,6 @@
 module App exposing (EntriesRepo, run)
 
 import Browser
-import Browser.Events exposing (onMouseMove)
 import Dict exposing (Dict)
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
@@ -24,17 +23,7 @@ type alias Model =
     , lanes : Dict Lane.ID Lane.Lane
     , error : String
     , liftedEntry : Maybe ID
-    , cursorPosition : CursorPosition
     }
-
-
-type alias CursorPosition =
-    { x : Int, y : Int }
-
-
-decodeCursorPosition : Json.Decode.Decoder CursorPosition
-decodeCursorPosition =
-    Json.Decode.map2 CursorPosition (Json.Decode.field "clientX" Json.Decode.int) (Json.Decode.field "clientY" Json.Decode.int)
 
 
 type Msg
@@ -48,7 +37,6 @@ type Msg
     | NothingHappenned
     | EntryLifted ID
     | EntryDropped Lane.ID
-    | CursorPositionUpdated CursorPosition
 
 
 init : EntriesRepo String Msg -> () -> ( Model, Cmd Msg )
@@ -64,7 +52,6 @@ initModel =
     , lanes = initLanes
     , error = ""
     , liftedEntry = Nothing
-    , cursorPosition = { x = 0, y = 0 }
     }
 
 
@@ -137,20 +124,19 @@ update repo msg model =
                         lanes =
                             Dict.map
                                 (\_ lane ->
-                                    let l = Lane.remove entryId lane
+                                    let
+                                        l =
+                                            Lane.remove entryId lane
                                     in
-                                        if l.id == laneId then
-                                            Lane.insert 0 entryId l
+                                    if l.id == laneId then
+                                        Lane.insert 0 entryId l
 
-                                        else
-                                            l
+                                    else
+                                        l
                                 )
                                 model.lanes
                     in
                     ( { model | lanes = lanes, error = "", liftedEntry = Nothing }, Cmd.none )
-
-        CursorPositionUpdated cp ->
-            ( { model | cursorPosition = cp }, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -176,7 +162,7 @@ viewLane entries lane =
         viewEntries =
             lane.entries
                 |> map (\id -> EntriesCollection.getEntry id entries)
-                |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\ e_ -> e_ ++ es)) []
+                |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\e_ -> e_ ++ es)) []
                 |> List.map viewEntry
     in
     div
@@ -200,13 +186,8 @@ viewEntry entry =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    case model.liftedEntry of
-        Just _ ->
-            onMouseMove (decodeCursorPosition |> Json.Decode.map CursorPositionUpdated)
-
-        _ ->
-            Sub.none
+subscriptions _ =
+    Sub.none
 
 
 type alias EntriesRepo err msg =
