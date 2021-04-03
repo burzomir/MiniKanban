@@ -6,7 +6,7 @@ import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
 import Html exposing (Html, button, div, h3, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
-import Html.Events exposing (on, onClick, onInput, preventDefaultOn)
+import Html.Events exposing (on, onClick, onInput, preventDefaultOn, stopPropagationOn)
 import Json.Decode
 import Lane
 import List exposing (map)
@@ -23,6 +23,8 @@ type alias Model =
     , lanes : Dict Lane.ID Lane.Lane
     , error : String
     , liftedEntry : Maybe ID
+    , enteredLane : Maybe Lane.ID
+    , enteredEntry : Maybe Int
     }
 
 
@@ -37,6 +39,10 @@ type Msg
     | NothingHappenned
     | EntryLifted ID
     | EntryDropped Lane.ID
+    | LaneEntered Lane.ID
+    | LaneLeft Lane.ID
+    | EntryEntered Lane.ID Int
+    | EntryLeft
 
 
 init : EntriesRepo String Msg -> () -> ( Model, Cmd Msg )
@@ -52,6 +58,8 @@ initModel =
     , lanes = initLanes
     , error = ""
     , liftedEntry = Nothing
+    , enteredLane = Nothing
+    , enteredEntry = Nothing
     }
 
 
@@ -121,6 +129,9 @@ update repo msg model =
 
                 Just entryId ->
                     let
+                        index =
+                            model.enteredEntry |> Maybe.withDefault 0
+
                         lanes =
                             Dict.map
                                 (\_ lane ->
@@ -129,7 +140,7 @@ update repo msg model =
                                             Lane.remove entryId lane
                                     in
                                     if l.id == laneId then
-                                        Lane.insert 0 entryId l
+                                        Lane.insert index entryId l
 
                                     else
                                         l
@@ -138,12 +149,35 @@ update repo msg model =
                     in
                     ( { model | lanes = lanes, error = "", liftedEntry = Nothing }, Cmd.none )
 
+        LaneEntered laneId ->
+            ( { model | enteredLane = Just laneId }, Cmd.none )
+
+        LaneLeft laneId ->
+            ( { model
+                | enteredLane =
+                    model.enteredLane
+                        |> Maybe.andThen
+                            (\id ->
+                                if id == laneId then
+                                    Nothing
+
+                                else
+                                    Just id
+                            )
+              }
+            , Cmd.none
+            )
+
+        EntryEntered laneId index ->
+            ( { model | enteredLane = Just laneId, enteredEntry = Just index }, Cmd.none )
+
+        EntryLeft ->
+            ( { model | enteredEntry = Nothing }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
     let
-        -- entries =
-        --     Dict.values model.entries |> List.sortBy .title
         buttons =
             [ div [ class "p-1" ] [ button [ class "ring rounded-md font-semibold text-white bg-blue-500 ring p-1", onClick AddEntry ] [ text "Add" ] ] ]
 
@@ -151,36 +185,48 @@ view model =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
     div []
-        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.entries))
+        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane (model.enteredEntry |> Maybe.map (\_ -> True) |> Maybe.withDefault False) model.entries))
         , div [] <| buttons ++ errors
         ]
 
 
-viewLane : EntriesCollection -> Lane.Lane -> Html Msg
-viewLane entries lane =
+viewLane : Bool -> EntriesCollection -> Lane.Lane -> Html Msg
+viewLane isEntryEntered entries lane =
     let
         viewEntries =
             lane.entries
                 |> map (\id -> EntriesCollection.getEntry id entries)
                 |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\e_ -> e_ ++ es)) []
-                |> List.map viewEntry
+                |> List.indexedMap (viewEntry lane.id)
+
+        dragLeave =
+            if isEntryEntered then
+                []
+
+            else
+                [ on "dragleave" (Json.Decode.succeed (LaneLeft lane.id)) ]
     in
     div
-        [ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
-        , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped lane.id, True ))
-        , class "flex-1"
-        ]
+        ([ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
+         , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped lane.id, True ))
+         , on "dragenter" (Json.Decode.succeed (LaneEntered lane.id))
+         , class "flex-1"
+         ]
+            ++ dragLeave
+        )
         (h3 [ class "text-xl p-1" ] [ text lane.title ] :: viewEntries)
 
 
-viewEntry : Entry -> Html Msg
-viewEntry entry =
+viewEntry : Lane.ID -> Int -> Entry -> Html Msg
+viewEntry laneId index entry =
     div
         [ draggable "true"
         , on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id)
+        , stopPropagationOn "dragenter" (Json.Decode.succeed ( EntryEntered laneId index, True ))
+        , stopPropagationOn "dragleave" (Json.Decode.succeed ( EntryLeft, True ))
         , class "border rounded border-gray-300 m-1 p-1 flex"
         ]
-        [ input [ value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
+        [ input [ style "pointer-events" "none", value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
         , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
         ]
 
