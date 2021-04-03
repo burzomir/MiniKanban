@@ -1,6 +1,7 @@
 module App exposing (EntriesRepo, run)
 
 import Browser
+import Browser.Events exposing (onMouseMove)
 import Dict
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
@@ -21,7 +22,17 @@ type alias Model =
     { entries : EntriesCollection.EntriesCollection
     , error : String
     , liftedEntry : Maybe ID
+    , cursorPosition : CursorPosition
     }
+
+
+type alias CursorPosition =
+    { x : Int, y : Int }
+
+
+decodeCursorPosition : Json.Decode.Decoder CursorPosition
+decodeCursorPosition =
+    Json.Decode.map2 CursorPosition (Json.Decode.field "clientX" Json.Decode.int) (Json.Decode.field "clientY" Json.Decode.int)
 
 
 type Msg
@@ -35,11 +46,12 @@ type Msg
     | NothingHappenned
     | EntryLifted ID
     | EntryDropped Status
+    | CursorPositionUpdated CursorPosition
 
 
 init : EntriesRepo String Msg -> () -> ( Model, Cmd Msg )
 init repo _ =
-    ( { entries = Dict.empty, error = "", liftedEntry = Nothing }
+    ( { entries = Dict.empty, error = "", liftedEntry = Nothing, cursorPosition = { x = 0, y = 0 } }
     , repo.getAll ErrorOccured Initialized
     )
 
@@ -109,7 +121,10 @@ update repo msg model =
                                 |> Maybe.map (repo.update ErrorOccured (\_ -> NothingHappenned))
                                 |> Maybe.withDefault Cmd.none
                     in
-                    ( { model | entries = entries, error = "" }, cmd )
+                    ( { model | entries = entries, error = "", liftedEntry = Nothing }, cmd )
+
+        CursorPositionUpdated cp ->
+            ( { model | cursorPosition = cp }, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -119,7 +134,7 @@ view model =
             Dict.values model.entries |> List.sortBy .title
 
         buttons =
-            [ div [class "p-1"] [ button [ class "ring rounded-md font-semibold text-white bg-blue-500 ring p-1", onClick AddEntry ] [ text "Add" ] ] ]
+            [ div [ class "p-1" ] [ button [ class "ring rounded-md font-semibold text-white bg-blue-500 ring p-1", onClick AddEntry ] [ text "Add" ] ] ]
 
         errors =
             [ div [ style "color" "red" ] [ text model.error ] ]
@@ -140,7 +155,7 @@ viewLane entries status header =
         [ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
         , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped status, True ))
         ]
-        (h3 [class "text-xl p-1"] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries))
+        (h3 [ class "text-xl p-1" ] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries))
 
 
 viewEntry : Entry -> Html Msg
@@ -156,8 +171,13 @@ viewEntry entry =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    case model.liftedEntry of
+        Just _ ->
+            onMouseMove (decodeCursorPosition |> Json.Decode.map CursorPositionUpdated)
+
+        _ ->
+            Sub.none
 
 
 type alias EntriesRepo err msg =
