@@ -71,7 +71,7 @@ initModel =
 initLanes : Dict ID Lane.Lane
 initLanes =
     Dict.fromList
-        [ ( "1", { id = "1", title = "To do", entries = [ "1" ] } )
+        [ ( "1", { id = "1", title = "To do", entries = [ "1", "17", "18", "19" ] } )
         , ( "2", { id = "2", title = "In progress", entries = [ "2" ] } )
         , ( "3", { id = "3", title = "Done", entries = [ "20" ] } )
         ]
@@ -165,7 +165,7 @@ view model =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
     div []
-        [ div [ style "display" "flex" ] (Dict.values model.lanes |> map (viewLane model.entries))
+        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.entries))
         , div [] <| buttons ++ errors
         ]
 
@@ -182,6 +182,7 @@ viewLane entries lane =
     div
         [ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
         , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped lane.id, True ))
+        , class "flex-1"
         ]
         (h3 [ class "text-xl p-1" ] [ text lane.title ] :: viewEntries)
 
@@ -191,9 +192,9 @@ viewEntry entry =
     div
         [ draggable "true"
         , on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id)
-        , class "border rounded border-gray-300 m-1 p-1"
+        , class "border rounded border-gray-300 m-1 p-1 flex"
         ]
-        [ input [ value entry.title, onInput (EntryTitleChanged entry.id) ] []
+        [ input [ value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
         , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
         ]
 
