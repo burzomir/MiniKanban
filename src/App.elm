@@ -2,13 +2,14 @@ module App exposing (EntriesRepo, run)
 
 import Browser
 import Browser.Events exposing (onMouseMove)
-import Dict
+import Dict exposing (Dict)
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
 import Html exposing (Html, button, div, h3, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
 import Html.Events exposing (on, onClick, onInput, preventDefaultOn)
 import Json.Decode
+import Lane
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 
@@ -20,6 +21,7 @@ run repo =
 
 type alias Model =
     { entries : EntriesCollection.EntriesCollection
+    , lanes : Dict Lane.ID Lane.Lane
     , error : String
     , liftedEntry : Maybe ID
     , cursorPosition : CursorPosition
@@ -45,15 +47,34 @@ type Msg
     | ErrorOccured String
     | NothingHappenned
     | EntryLifted ID
-    | EntryDropped Status
+    | EntryDropped Lane.ID
     | CursorPositionUpdated CursorPosition
 
 
 init : EntriesRepo String Msg -> () -> ( Model, Cmd Msg )
 init repo _ =
-    ( { entries = Dict.empty, error = "", liftedEntry = Nothing, cursorPosition = { x = 0, y = 0 } }
+    ( initModel
     , repo.getAll ErrorOccured Initialized
     )
+
+
+initModel : Model
+initModel =
+    { entries = Dict.empty
+    , lanes = initLanes
+    , error = ""
+    , liftedEntry = Nothing
+    , cursorPosition = { x = 0, y = 0 }
+    }
+
+
+initLanes : Dict ID Lane.Lane
+initLanes =
+    Dict.fromList
+        [ ( "1", { id = "1", title = "To do", entries = [ "1" ] } )
+        , ( "2", { id = "2", title = "In progress", entries = [ "2" ] } )
+        , ( "3", { id = "3", title = "Done", entries = [ "20" ] } )
+        ]
 
 
 update : EntriesRepo String Msg -> Msg -> Model -> ( Model, Cmd Msg )
@@ -106,22 +127,27 @@ update repo msg model =
         EntryLifted id ->
             ( { model | liftedEntry = Just id }, Cmd.none )
 
-        EntryDropped status ->
+        EntryDropped laneId ->
             case model.liftedEntry of
                 Nothing ->
                     ( { model | liftedEntry = Nothing }, Cmd.none )
 
-                Just id ->
+                Just entryId ->
                     let
-                        entries =
-                            EntriesCollection.changeEntryStatus id status model.entries
+                        lanes =
+                            Dict.map
+                                (\_ lane ->
+                                    let l = Lane.remove entryId lane
+                                    in
+                                        if l.id == laneId then
+                                            Lane.insert 0 entryId l
 
-                        cmd =
-                            EntriesCollection.getEntry id entries
-                                |> Maybe.map (repo.update ErrorOccured (\_ -> NothingHappenned))
-                                |> Maybe.withDefault Cmd.none
+                                        else
+                                            l
+                                )
+                                model.lanes
                     in
-                    ( { model | entries = entries, error = "", liftedEntry = Nothing }, cmd )
+                    ( { model | lanes = lanes, error = "", liftedEntry = Nothing }, Cmd.none )
 
         CursorPositionUpdated cp ->
             ( { model | cursorPosition = cp }, Cmd.none )
@@ -130,9 +156,8 @@ update repo msg model =
 view : Model -> Html Msg
 view model =
     let
-        entries =
-            Dict.values model.entries |> List.sortBy .title
-
+        -- entries =
+        --     Dict.values model.entries |> List.sortBy .title
         buttons =
             [ div [ class "p-1" ] [ button [ class "ring rounded-md font-semibold text-white bg-blue-500 ring p-1", onClick AddEntry ] [ text "Add" ] ] ]
 
@@ -140,22 +165,25 @@ view model =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
     div []
-        [ div [ style "display" "flex" ]
-            [ viewLane entries Todo "Todo"
-            , viewLane entries InProgress "In progress"
-            , viewLane entries Done "Done"
-            ]
+        [ div [ style "display" "flex" ] (Dict.values model.lanes |> map (viewLane model.entries))
         , div [] <| buttons ++ errors
         ]
 
 
-viewLane : List Entry -> Status -> String -> Html Msg
-viewLane entries status header =
+viewLane : EntriesCollection -> Lane.Lane -> Html Msg
+viewLane entries lane =
+    let
+        viewEntries =
+            lane.entries
+                |> map (\id -> EntriesCollection.getEntry id entries)
+                |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> List.append es) []
+                |> List.map viewEntry
+    in
     div
         [ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
-        , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped status, True ))
+        , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped lane.id, True ))
         ]
-        (h3 [ class "text-xl p-1" ] [ text header ] :: (map viewEntry <| List.filter (\e -> e.status == status) entries))
+        (h3 [ class "text-xl p-1" ] [ text lane.title ] :: viewEntries)
 
 
 viewEntry : Entry -> Html Msg
