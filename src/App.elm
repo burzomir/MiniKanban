@@ -176,7 +176,7 @@ viewLane entries lane =
         viewEntries =
             lane.entries
                 |> map (\id -> EntriesCollection.getEntry id entries)
-                |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> List.append es) []
+                |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\ e_ -> e_ ++ es)) []
                 |> List.map viewEntry
     in
     div
