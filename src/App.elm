@@ -5,7 +5,7 @@ import Dict exposing (Dict)
 import DragDrop as DD
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Title)
-import Html exposing (Html, button, div, h3, input, text)
+import Html exposing (Html, button, div, h1, h3, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
 import Html.Events exposing (onClick, onInput)
 import Lane
@@ -135,16 +135,13 @@ update repo msg model =
 
 view : Model -> Html Msg
 view model =
-    let
-        buttons =
-            [ div [ class "p-1" ] [ button [ class "ring rounded-md font-semibold text-white bg-blue-500 ring p-1", onClick AddEntry ] [ text "Add" ] ] ]
-
-        errors =
-            [ div [ style "color" "red" ] [ text model.error ] ]
-    in
     div []
-        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.entries))
-        , div [] <| buttons ++ errors
+        [ div [ class "flex" ]
+            [ div [ class "p-1 flex-1" ] [ h1 [class "text-xl"] [ text "Mini Kanban" ] ]
+            , div [ class "p-1" ] [ button [ class "p-1", onClick AddEntry ] [ text "➕" ] ]
+            ]
+        , div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.entries))
+        , div [] [ div [ style "color" "red" ] [ text model.error ] ]
         ]
 
 
@@ -158,7 +155,7 @@ viewLane ddModel entries lane =
                 |> List.indexedMap (viewEntry ddModel lane.id)
     in
     div
-        (class "flex-1"
+        (class "flex-1 border rounded m-1 pb-12"
             :: DD.onLaneEnter DragDropMsg lane.id
             ++ DD.onLaneOver NothingHappenned
             ++ DD.onLaneLeave DragDropMsg ddModel lane.id
