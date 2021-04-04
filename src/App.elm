@@ -2,16 +2,15 @@ module App exposing (EntriesRepo, run)
 
 import Browser
 import Dict exposing (Dict)
+import DragDrop as DD
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Status(..), Title)
 import Html exposing (Html, button, div, h3, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
-import Html.Events exposing (on, onClick, onInput, preventDefaultOn, stopPropagationOn)
-import Json.Decode
+import Html.Events exposing (onClick, onInput)
 import Lane
 import List exposing (map)
 import Maybe exposing (Maybe(..))
-import Maybe.Extra exposing (isJust)
 
 
 run : EntriesRepo String Msg -> Program () Model Msg
@@ -23,9 +22,7 @@ type alias Model =
     { entries : EntriesCollection.EntriesCollection
     , lanes : Dict Lane.ID Lane.Lane
     , error : String
-    , liftedEntry : Maybe ID
-    , enteredLane : Maybe Lane.ID
-    , enteredEntry : Maybe Int
+    , dragDrop : DD.Model
     }
 
 
@@ -38,12 +35,8 @@ type Msg
     | EntryDeleted ID
     | ErrorOccured String
     | NothingHappenned
-    | EntryLifted ID
-    | EntryDropped Lane.ID
-    | LaneEntered Lane.ID
-    | LaneLeft Lane.ID
-    | EntryEntered Int
-    | EntryLeft
+    | DragDropMsg DD.Msg
+    | EntryDropped DD.Msg
 
 
 init : EntriesRepo String Msg -> () -> ( Model, Cmd Msg )
@@ -58,9 +51,7 @@ initModel =
     { entries = Dict.empty
     , lanes = initLanes
     , error = ""
-    , liftedEntry = Nothing
-    , enteredLane = Nothing
-    , enteredEntry = Nothing
+    , dragDrop = DD.init
     }
 
 
@@ -120,18 +111,18 @@ update repo msg model =
         NothingHappenned ->
             ( model, Cmd.none )
 
-        EntryLifted id ->
-            ( { model | liftedEntry = Just id }, Cmd.none )
-
-        EntryDropped laneId ->
-            case model.liftedEntry of
+        EntryDropped ddMsg ->
+            case model.dragDrop.draggedEntry of
                 Nothing ->
-                    ( { model | liftedEntry = Nothing }, Cmd.none )
+                    ( { model | dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )
 
                 Just entryId ->
                     let
                         index =
-                            model.enteredEntry |> Maybe.withDefault 0
+                            model.dragDrop.overEntry |> Maybe.withDefault 0
+
+                        laneId =
+                            model.dragDrop.overLane
 
                         lanes =
                             Dict.map
@@ -140,7 +131,7 @@ update repo msg model =
                                         l =
                                             Lane.remove entryId lane
                                     in
-                                    if l.id == laneId then
+                                    if Just l.id == laneId then
                                         Lane.insert index entryId l
 
                                     else
@@ -148,32 +139,10 @@ update repo msg model =
                                 )
                                 model.lanes
                     in
-                    ( { model | lanes = lanes, error = "", liftedEntry = Nothing, enteredLane = Nothing, enteredEntry = Nothing }, Cmd.none )
+                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )
 
-        LaneEntered laneId ->
-            ( { model | enteredLane = Just laneId }, Cmd.none )
-
-        LaneLeft laneId ->
-            ( { model
-                | enteredLane =
-                    model.enteredLane
-                        |> Maybe.andThen
-                            (\id ->
-                                if id == laneId then
-                                    Nothing
-
-                                else
-                                    Just id
-                            )
-              }
-            , Cmd.none
-            )
-
-        EntryEntered index ->
-            ( { model | enteredEntry = Just index }, Cmd.none )
-
-        EntryLeft ->
-            ( { model | enteredEntry = Nothing }, Cmd.none )
+        DragDropMsg ddMsg ->
+            ( { model | dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -186,34 +155,26 @@ view model =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
     div []
-        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.enteredEntry model.entries))
+        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.dragDrop.overEntry model.entries))
         , div [] <| buttons ++ errors
         ]
 
 
-viewLane : Maybe Int -> EntriesCollection -> Lane.Lane -> Html Msg
-viewLane liftedEntryIndex entries lane =
+viewLane : DD.Model -> Maybe Int -> EntriesCollection -> Lane.Lane -> Html Msg
+viewLane ddModel liftedEntryIndex entries lane =
     let
         viewEntries =
             lane.entries
                 |> map (\id -> EntriesCollection.getEntry id entries)
                 |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\e_ -> e_ ++ es)) []
                 |> List.indexedMap (viewEntry liftedEntryIndex)
-
-        dragLeave =
-            if isJust liftedEntryIndex then
-                []
-
-            else
-                [ on "dragleave" (Json.Decode.succeed (LaneLeft lane.id)) ]
     in
     div
-        ([ preventDefaultOn "dragover" (Json.Decode.succeed ( NothingHappenned, True ))
-         , preventDefaultOn "drop" (Json.Decode.succeed ( EntryDropped lane.id, True ))
-         , on "dragenter" (Json.Decode.succeed (LaneEntered lane.id))
-         , class "flex-1"
-         ]
-            ++ dragLeave
+        (class "flex-1"
+            :: DD.onLaneEnter DragDropMsg lane.id
+            ++ DD.onLaneOver NothingHappenned
+            ++ DD.onLaneLeave DragDropMsg ddModel lane.id
+            ++ DD.onEntryDrop EntryDropped
         )
         (h3 [ class "text-xl p-1" ] [ text lane.title ] :: viewEntries)
 
@@ -230,12 +191,12 @@ viewEntry liftedEntryIndex index entry =
     in
     div
         ([ draggable "true"
-         , on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id)
-         , stopPropagationOn "dragenter" (Json.Decode.succeed ( EntryEntered index, True ))
-         , stopPropagationOn "dragleave" (Json.Decode.succeed ( EntryLeft, True ))
          , class "border rounded border-gray-300 m-1 p-1 flex"
          ]
             ++ dropIndicator
+            ++ DD.onEntryDragStart DragDropMsg entry.id
+            ++ DD.onEntryEnter DragDropMsg index
+            ++ DD.onEntryLeave DragDropMsg
         )
         [ input [ style "pointer-events" "none", value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
         , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
