@@ -11,6 +11,7 @@ import Json.Decode
 import Lane
 import List exposing (map)
 import Maybe exposing (Maybe(..))
+import Maybe.Extra exposing (isJust)
 
 
 run : EntriesRepo String Msg -> Program () Model Msg
@@ -41,7 +42,7 @@ type Msg
     | EntryDropped Lane.ID
     | LaneEntered Lane.ID
     | LaneLeft Lane.ID
-    | EntryEntered Lane.ID Int
+    | EntryEntered Int
     | EntryLeft
 
 
@@ -147,7 +148,7 @@ update repo msg model =
                                 )
                                 model.lanes
                     in
-                    ( { model | lanes = lanes, error = "", liftedEntry = Nothing }, Cmd.none )
+                    ( { model | lanes = lanes, error = "", liftedEntry = Nothing, enteredLane = Nothing, enteredEntry = Nothing }, Cmd.none )
 
         LaneEntered laneId ->
             ( { model | enteredLane = Just laneId }, Cmd.none )
@@ -168,8 +169,8 @@ update repo msg model =
             , Cmd.none
             )
 
-        EntryEntered laneId index ->
-            ( { model | enteredLane = Just laneId, enteredEntry = Just index }, Cmd.none )
+        EntryEntered index ->
+            ( { model | enteredEntry = Just index }, Cmd.none )
 
         EntryLeft ->
             ( { model | enteredEntry = Nothing }, Cmd.none )
@@ -185,22 +186,22 @@ view model =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
     div []
-        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane (model.enteredEntry |> Maybe.map (\_ -> True) |> Maybe.withDefault False) model.entries))
+        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.enteredEntry model.entries))
         , div [] <| buttons ++ errors
         ]
 
 
-viewLane : Bool -> EntriesCollection -> Lane.Lane -> Html Msg
-viewLane isEntryEntered entries lane =
+viewLane : Maybe Int -> EntriesCollection -> Lane.Lane -> Html Msg
+viewLane liftedEntryIndex entries lane =
     let
         viewEntries =
             lane.entries
                 |> map (\id -> EntriesCollection.getEntry id entries)
                 |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\e_ -> e_ ++ es)) []
-                |> List.indexedMap (viewEntry lane.id)
+                |> List.indexedMap (viewEntry liftedEntryIndex)
 
         dragLeave =
-            if isEntryEntered then
+            if isJust liftedEntryIndex then
                 []
 
             else
@@ -217,15 +218,25 @@ viewLane isEntryEntered entries lane =
         (h3 [ class "text-xl p-1" ] [ text lane.title ] :: viewEntries)
 
 
-viewEntry : Lane.ID -> Int -> Entry -> Html Msg
-viewEntry laneId index entry =
+viewEntry : Maybe Int -> Int -> Entry -> Html Msg
+viewEntry liftedEntryIndex index entry =
+    let
+        dropIndicator =
+            if liftedEntryIndex == Just index then
+                [ style "border-top" "4px solid blue" ]
+
+            else
+                []
+    in
     div
-        [ draggable "true"
-        , on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id)
-        , stopPropagationOn "dragenter" (Json.Decode.succeed ( EntryEntered laneId index, True ))
-        , stopPropagationOn "dragleave" (Json.Decode.succeed ( EntryLeft, True ))
-        , class "border rounded border-gray-300 m-1 p-1 flex"
-        ]
+        ([ draggable "true"
+         , on "dragstart" (Json.Decode.succeed <| EntryLifted entry.id)
+         , stopPropagationOn "dragenter" (Json.Decode.succeed ( EntryEntered index, True ))
+         , stopPropagationOn "dragleave" (Json.Decode.succeed ( EntryLeft, True ))
+         , class "border rounded border-gray-300 m-1 p-1 flex"
+         ]
+            ++ dropIndicator
+        )
         [ input [ style "pointer-events" "none", value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
         , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
         ]
