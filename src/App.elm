@@ -142,19 +142,19 @@ view model =
             [ div [ style "color" "red" ] [ text model.error ] ]
     in
     div []
-        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.dragDrop.overEntry model.entries))
+        [ div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.entries))
         , div [] <| buttons ++ errors
         ]
 
 
-viewLane : DD.Model -> Maybe Int -> EntriesCollection -> Lane.Lane -> Html Msg
-viewLane ddModel liftedEntryIndex entries lane =
+viewLane : DD.Model -> EntriesCollection -> Lane.Lane -> Html Msg
+viewLane ddModel entries lane =
     let
         viewEntries =
             lane.entries
                 |> map (\id -> EntriesCollection.getEntry id entries)
                 |> List.foldr (\e es -> e |> Maybe.map List.singleton |> Maybe.withDefault [] |> (\e_ -> e_ ++ es)) []
-                |> List.indexedMap (viewEntry liftedEntryIndex)
+                |> List.indexedMap (viewEntry ddModel lane.id)
     in
     div
         (class "flex-1"
@@ -166,11 +166,11 @@ viewLane ddModel liftedEntryIndex entries lane =
         (h3 [ class "text-xl p-1" ] [ text lane.title ] :: viewEntries)
 
 
-viewEntry : Maybe Int -> Int -> Entry -> Html Msg
-viewEntry liftedEntryIndex index entry =
+viewEntry : DD.Model -> Lane.ID -> Int -> Entry -> Html Msg
+viewEntry ddModel laneId index entry =
     let
         dropIndicator =
-            if liftedEntryIndex == Just index then
+            if ddModel.overEntry == Just index && ddModel.overLane == Just laneId then
                 [ style "border-top" "4px solid blue" ]
 
             else
