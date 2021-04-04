@@ -4,7 +4,7 @@ import Browser
 import Dict exposing (Dict)
 import DragDrop as DD
 import EntriesCollection exposing (EntriesCollection)
-import Entry exposing (Entry, ID, Status(..), Title)
+import Entry exposing (Entry, ID, Title)
 import Html exposing (Html, button, div, h3, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
 import Html.Events exposing (onClick, onInput)
@@ -31,7 +31,6 @@ type Msg
     | AddEntry
     | EntryAdded Entry
     | EntryTitleChanged ID Title
-    | EntryStatusChanged ID Status
     | EntryDeleted ID
     | ErrorOccured String
     | NothingHappenned
@@ -80,18 +79,6 @@ update repo msg model =
             let
                 entries =
                     EntriesCollection.changeEntryTitle id title model.entries
-
-                cmd =
-                    EntriesCollection.getEntry id entries
-                        |> Maybe.map (repo.update ErrorOccured (\_ -> NothingHappenned))
-                        |> Maybe.withDefault Cmd.none
-            in
-            ( { model | entries = entries, error = "" }, cmd )
-
-        EntryStatusChanged id status ->
-            let
-                entries =
-                    EntriesCollection.changeEntryStatus id status model.entries
 
                 cmd =
                     EntriesCollection.getEntry id entries

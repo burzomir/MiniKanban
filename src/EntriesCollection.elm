@@ -1,7 +1,7 @@
-module EntriesCollection exposing (EntriesCollection, changeEntryStatus, changeEntryTitle, decode, deleteEntry, getEntry, insertEntry)
+module EntriesCollection exposing (EntriesCollection, changeEntryTitle, decode, deleteEntry, getEntry, insertEntry)
 
 import Dict exposing (Dict)
-import Entry exposing (Entry, ID, Status, Title)
+import Entry exposing (Entry, ID, Title)
 import Json.Decode
 import Maybe exposing (Maybe(..))
 
@@ -18,11 +18,6 @@ insertEntry entry =
 changeEntryTitle : ID -> Title -> EntriesCollection -> EntriesCollection
 changeEntryTitle id title =
     Dict.update id (Maybe.map (\v -> { v | title = title }))
-
-
-changeEntryStatus : ID -> Status -> EntriesCollection -> EntriesCollection
-changeEntryStatus id status =
-    Dict.update id (Maybe.map (\v -> { v | status = status }))
 
 
 deleteEntry : ID -> EntriesCollection -> EntriesCollection
