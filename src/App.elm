@@ -11,6 +11,7 @@ import Html.Events exposing (onClick, onInput)
 import Lane
 import List exposing (map)
 import Maybe exposing (Maybe(..))
+import Maybe.Extra exposing (isJust)
 
 
 run : EntriesRepo String Msg -> Program () Model Msg
@@ -175,18 +176,27 @@ viewEntry ddModel laneId index entry =
 
             else
                 []
+
+        pointerEvents =
+            if isJust ddModel.draggedEntry then
+                [ style "pointer-events" "none" ]
+
+            else
+                []
     in
     div
         ([ draggable "true"
-         , class "border rounded border-gray-300 m-1 p-1 flex"
+         , class "border rounded border-gray-300 m-1 p-1"
          ]
             ++ dropIndicator
             ++ DD.onEntryDragStart DragDropMsg entry.id
             ++ DD.onEntryEnter DragDropMsg index
             ++ DD.onEntryLeave DragDropMsg
         )
-        [ input [ style "pointer-events" "none", value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
-        , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
+        [ div (class "w-full flex" :: pointerEvents)
+            [ input [ value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
+            , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
+            ]
         ]
 
 
