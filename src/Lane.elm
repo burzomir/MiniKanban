@@ -34,6 +34,11 @@ insert index id lane =
     { lane | entries = entries }
 
 
+append : Entry.ID -> Lane -> Lane
+append entryId lane =
+    { lane | entries = lane.entries ++ [ entryId ] }
+
+
 remove : Entry.ID -> Lane -> Lane
 remove id lane =
     let

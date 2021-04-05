@@ -107,7 +107,7 @@ update repo msg model =
                 Just entryId ->
                     let
                         index =
-                            model.dragDrop.overEntry |> Maybe.withDefault 0
+                            model.dragDrop.overEntry
 
                         laneId =
                             model.dragDrop.overLane
@@ -120,7 +120,11 @@ update repo msg model =
                                             Lane.remove entryId lane
                                     in
                                     if Just l.id == laneId then
-                                        Lane.insert index entryId l
+                                        if isJust index then
+                                            Lane.insert (index |> Maybe.withDefault 0) entryId l
+
+                                        else
+                                            Lane.append entryId l
 
                                     else
                                         l
@@ -137,7 +141,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ div [ class "flex" ]
-            [ div [ class "p-1 flex-1" ] [ h1 [class "text-xl"] [ text "Mini Kanban" ] ]
+            [ div [ class "p-1 flex-1" ] [ h1 [ class "text-xl" ] [ text "Mini Kanban" ] ]
             , div [ class "p-1" ] [ button [ class "p-1", onClick AddEntry ] [ text "➕" ] ]
             ]
         , div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.entries))
