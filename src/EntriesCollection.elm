@@ -1,13 +1,19 @@
-module EntriesCollection exposing (EntriesCollection, changeEntryTitle, decode, deleteEntry, getEntry, insertEntry)
+module EntriesCollection exposing (EntriesCollection, changeEntryTitle, decode, deleteEntry, empty, encode, getEntry, insertEntry)
 
 import Dict exposing (Dict)
 import Entry exposing (Entry, ID, Title)
 import Json.Decode
+import Json.Encode
 import Maybe exposing (Maybe(..))
 
 
 type alias EntriesCollection =
     Dict ID Entry
+
+
+empty : EntriesCollection
+empty =
+    Dict.empty
 
 
 insertEntry : Entry -> EntriesCollection -> EntriesCollection
@@ -35,3 +41,8 @@ decode =
     Json.Decode.list Entry.decode
         |> Json.Decode.map (List.map (\entry -> ( entry.id, entry )))
         |> Json.Decode.map Dict.fromList
+
+
+encode : EntriesCollection -> Json.Encode.Value
+encode collection =
+    Json.Encode.list Entry.encode <| Dict.values collection

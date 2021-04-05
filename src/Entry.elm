@@ -25,7 +25,8 @@ decode =
 encode : Entry -> Json.Encode.Value
 encode entry =
     Json.Encode.object
-        [ ( "title", Json.Encode.string entry.title )
+        [ ( "id", Json.Encode.string entry.id )
+        , ( "title", Json.Encode.string entry.title )
         ]
 
 

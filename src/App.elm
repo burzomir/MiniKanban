@@ -1,6 +1,5 @@
-module App exposing (EntriesRepo, run)
+module App exposing (EntriesRepo, Model, Msg, init, subscriptions, update, view)
 
-import Browser
 import Dict exposing (Dict)
 import DragDrop as DD
 import EntriesCollection exposing (EntriesCollection)
@@ -12,11 +11,6 @@ import Lane
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 import Maybe.Extra exposing (isJust)
-
-
-run : EntriesRepo String Msg -> Program () Model Msg
-run repo =
-    Browser.element { init = init repo, subscriptions = subscriptions, view = view, update = update repo }
 
 
 type alias Model =
