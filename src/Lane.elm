@@ -1,6 +1,8 @@
 module Lane exposing (..)
 
 import Entry
+import Json.Decode
+import Json.Encode
 import List exposing (drop, filter, take)
 
 
@@ -46,3 +48,37 @@ remove id lane =
             filter ((/=) id) lane.entries
     in
     { lane | entries = entries }
+
+
+decode : Json.Decode.Decoder Lane
+decode =
+    Json.Decode.map3 Lane idDecoder titleDecoder entriesDecoder
+
+
+encode : Lane -> Json.Encode.Value
+encode lane =
+    Json.Encode.object
+        [ ( "id", Json.Encode.string lane.id )
+        , ( "title", Json.Encode.string lane.title )
+        , ( "entries", entriesEncoder lane.entries )
+        ]
+
+
+idDecoder : Json.Decode.Decoder ID
+idDecoder =
+    Json.Decode.field "id" Json.Decode.string
+
+
+titleDecoder : Json.Decode.Decoder Title
+titleDecoder =
+    Json.Decode.field "title" Json.Decode.string
+
+
+entriesDecoder : Json.Decode.Decoder (List Entry.ID)
+entriesDecoder =
+    Json.Decode.list Entry.idDecoder
+
+
+entriesEncoder : List Entry.ID -> Json.Encode.Value
+entriesEncoder =
+    Json.Encode.list Entry.idEncoder

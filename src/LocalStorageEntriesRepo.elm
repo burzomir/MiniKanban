@@ -1,7 +1,6 @@
 module LocalStorageEntriesRepo exposing (..)
 
 import App
-import Debug
 import Dict
 import EntriesCollection
 import Json.Encode

@@ -6,7 +6,9 @@ import EntriesCollection
 import Html exposing (Html)
 import Json.Decode
 import Json.Encode
+import LanesCollection
 import LocalStorageEntriesRepo exposing (localStorageEntriesRepo)
+import LocalStorageLanesRepo exposing (localStorageLanesRepo)
 
 
 main : Program Json.Encode.Value Model Msg
@@ -22,23 +24,43 @@ main =
 type alias Model =
     { app : App.Model
     , entries : EntriesCollection.EntriesCollection
+    , lanes : LanesCollection.LanesCollection
     }
 
 
-init : Json.Encode.Value -> ( Model, Cmd Msg )
-init entriesCollection =
-    let
-        entries =
-            Json.Decode.decodeValue EntriesCollection.decode entriesCollection
-                |> Result.withDefault EntriesCollection.empty
+type alias Flags =
+    { entries : EntriesCollection.EntriesCollection
+    , lanes : LanesCollection.LanesCollection
+    }
 
-        repo =
-            localStorageEntriesRepo saveEntriesCollection entries
+
+flagsDecoder : Json.Decode.Decoder Flags
+flagsDecoder =
+    Json.Decode.map2
+        Flags
+        (Json.Decode.field "entries" EntriesCollection.decode)
+        (Json.Decode.field "lanes" LanesCollection.decode)
+
+
+init : Json.Encode.Value -> ( Model, Cmd Msg )
+init flags =
+    let
+        decodedFlags =
+            Json.Decode.decodeValue flagsDecoder flags
+                |> Result.withDefault { entries = EntriesCollection.empty, lanes = LanesCollection.empty }
+
+        env =
+            { entriesRepo = localStorageEntriesRepo saveEntriesCollection decodedFlags.entries
+            , lanesRepo = localStorageLanesRepo saveLanesCollection decodedFlags.lanes
+            }
 
         ( app, appCmd ) =
-            App.init repo ()
+            App.init env ()
+
+        model =
+            { app = app, entries = decodedFlags.entries, lanes = decodedFlags.lanes }
     in
-    ( { app = app, entries = entries }, Cmd.batch [ appCmd |> Cmd.map AppMsg ] )
+    ( model, Cmd.batch [ appCmd |> Cmd.map AppMsg ] )
 
 
 type Msg
@@ -50,11 +72,13 @@ update msg model =
     case msg of
         AppMsg appMsg ->
             let
-                repo =
-                    localStorageEntriesRepo saveEntriesCollection model.app.entries
+                env =
+                    { entriesRepo = localStorageEntriesRepo saveEntriesCollection model.app.entries
+                    , lanesRepo = localStorageLanesRepo saveLanesCollection model.app.lanes
+                    }
 
                 ( app, cmd ) =
-                    App.update repo appMsg model.app
+                    App.update env appMsg model.app
             in
             ( { model | app = app }, cmd |> Cmd.map AppMsg )
 
@@ -65,3 +89,6 @@ view model =
 
 
 port saveEntriesCollection : Json.Encode.Value -> Cmd msg
+
+
+port saveLanesCollection : Json.Encode.Value -> Cmd msg
