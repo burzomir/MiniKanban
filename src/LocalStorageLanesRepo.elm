@@ -1,7 +1,6 @@
 module LocalStorageLanesRepo exposing (..)
 
 import App
-import Debug
 import Dict
 import Json.Encode
 import Lane
@@ -51,8 +50,7 @@ create saveToLocalStorage collection _ okMsg =
         return =
             lane |> okMsg |> msgToCmd
     in
-    Debug.log ("New id " ++ id)
-        Cmd.batch
+    Cmd.batch
         [ save, return ]
 
 
