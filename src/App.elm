@@ -116,7 +116,7 @@ update env msg model =
 
         LaneDeleted laneId ->
             ( { model | lanes = LanesCollection.delete laneId model.lanes, error = "" }
-            , env.entriesRepo.delete ErrorOccured (\_ -> NothingHappenned) laneId
+            , env.lanesRepo.delete ErrorOccured (\_ -> NothingHappenned) laneId
             )
 
         ErrorOccured error ->
