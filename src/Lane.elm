@@ -76,9 +76,9 @@ titleDecoder =
 
 entriesDecoder : Json.Decode.Decoder (List Entry.ID)
 entriesDecoder =
-    Json.Decode.list Entry.idDecoder
+    Json.Decode.field "entries" (Json.Decode.list Entry.decodeId)
 
 
 entriesEncoder : List Entry.ID -> Json.Encode.Value
 entriesEncoder =
-    Json.Encode.list Entry.idEncoder
+    Json.Encode.list Entry.encodeId

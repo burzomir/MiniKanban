@@ -1,4 +1,4 @@
-module Entry exposing (Entry, ID, Title, decode, encode, idDecoder, idEncoder)
+module Entry exposing (Entry, ID, Title, decode, encode, decodeId, encodeId)
 
 import Json.Decode
 import Json.Encode
@@ -35,8 +35,13 @@ idDecoder =
     Json.Decode.field "id" Json.Decode.string
 
 
-idEncoder : ID -> Json.Encode.Value
-idEncoder =
+decodeId : Json.Decode.Decoder ID
+decodeId =
+    Json.Decode.string
+
+
+encodeId : ID -> Json.Encode.Value
+encodeId =
     Json.Encode.string
 
 
