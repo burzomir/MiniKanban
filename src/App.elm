@@ -168,8 +168,14 @@ update env msg model =
                                         l
                                 )
                                 model.lanes
+
+                        cmd =
+                            laneId
+                                |> Maybe.andThen (\id -> LanesCollection.get id lanes)
+                                |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> NothingHappenned))
+                                |> Maybe.withDefault Cmd.none
                     in
-                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )
+                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, cmd )
 
         DragDropMsg ddMsg ->
             ( { model | dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )
