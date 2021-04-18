@@ -24,8 +24,8 @@ type alias Model =
 
 type Msg
     = EntriesInitialized EntriesCollection.EntriesCollection
-    | AddEntry
-    | EntryAdded Entry
+    | AddEntry Lane.ID
+    | EntryAdded Lane.ID Entry
     | EntryTitleChanged ID Title
     | EntryDeleted ID
     | LanesInitialized LanesCollection.LanesCollection
@@ -70,11 +70,23 @@ update env msg model =
         EntriesInitialized entries ->
             ( { model | entries = entries }, Cmd.none )
 
-        AddEntry ->
-            ( { model | error = "" }, env.entriesRepo.create ErrorOccured EntryAdded )
+        AddEntry laneId ->
+            ( { model | error = "" }, env.entriesRepo.create ErrorOccured (EntryAdded laneId) )
 
-        EntryAdded entry ->
-            ( { model | entries = EntriesCollection.insertEntry entry model.entries, error = "" }, Cmd.none )
+        EntryAdded laneId entry ->
+            let
+                entries =
+                    EntriesCollection.insertEntry entry model.entries
+
+                lanes =
+                    LanesCollection.appendEntry laneId entry.id model.lanes
+
+                cmd =
+                    LanesCollection.get laneId lanes
+                        |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> NothingHappenned))
+                        |> Maybe.withDefault Cmd.none
+            in
+            ( { model | entries = entries, lanes = lanes, error = "" }, cmd )
 
         EntryTitleChanged id title ->
             let
@@ -193,6 +205,7 @@ viewLane ddModel entries lane =
         )
         (div [ class "flex" ]
             [ input [ value lane.title, onInput (LaneTitleChanged lane.id), class "flex-grow text-xl p-1" ] []
+            , button [ onClick (AddEntry lane.id) ] [ text "➕" ]
             , button [ onClick (LaneDeleted lane.id) ] [ text "🗑️" ]
             ]
             :: viewEntries

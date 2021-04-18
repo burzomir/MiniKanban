@@ -1,6 +1,7 @@
 module LanesCollection exposing (..)
 
 import Dict exposing (Dict)
+import Entry
 import Json.Decode
 import Json.Encode
 import Lane exposing (ID, Lane, Title)
@@ -24,6 +25,11 @@ insert lane =
 changeTitle : ID -> Title -> LanesCollection -> LanesCollection
 changeTitle id title =
     Dict.update id (Maybe.map (\v -> { v | title = title }))
+
+
+appendEntry : ID -> Entry.ID -> LanesCollection -> LanesCollection
+appendEntry laneId entryId collection =
+    Dict.update laneId (Maybe.map (Lane.append entryId)) collection
 
 
 delete : ID -> LanesCollection -> LanesCollection
