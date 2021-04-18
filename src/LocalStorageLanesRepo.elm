@@ -58,7 +58,7 @@ update : (Json.Encode.Value -> Cmd msg) -> LanesCollection.LanesCollection -> (e
 update saveToLocalStorage collection _ okMsg lane =
     let
         newCollection =
-            LanesCollection.changeTitle lane.id lane.title collection
+            LanesCollection.update lane collection
 
         save =
             newCollection |> LanesCollection.encode |> saveToLocalStorage

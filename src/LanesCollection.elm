@@ -31,6 +31,10 @@ appendEntry : ID -> Entry.ID -> LanesCollection -> LanesCollection
 appendEntry laneId entryId collection =
     Dict.update laneId (Maybe.map (Lane.append entryId)) collection
 
+update : Lane -> LanesCollection -> LanesCollection
+update lane collection =
+    Dict.update lane.id (Maybe.map (always lane)) collection
+
 
 delete : ID -> LanesCollection -> LanesCollection
 delete =
