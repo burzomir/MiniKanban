@@ -8,7 +8,7 @@ import Html exposing (Html, button, div, h1, h3, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
 import Html.Events exposing (onClick, onInput)
 import Lane
-import LanesCollection
+import LanesCollection exposing (LanesCollection)
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 import Maybe.Extra exposing (isJust)
@@ -150,6 +150,9 @@ update env msg model =
                         laneId =
                             model.dragDrop.overLane
 
+                        laneWithEntryRemoved =
+                            LanesCollection.getByEntry entryId model.lanes
+
                         lanes =
                             Dict.map
                                 (\_ lane ->
@@ -169,13 +172,19 @@ update env msg model =
                                 )
                                 model.lanes
 
-                        cmd =
+                        cmd1 =
                             laneId
                                 |> Maybe.andThen (\id -> LanesCollection.get id lanes)
                                 |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> NothingHappenned))
                                 |> Maybe.withDefault Cmd.none
+
+                        cmd2 =
+                            laneWithEntryRemoved
+                                |> Maybe.andThen (\lane -> LanesCollection.get lane.id lanes)
+                                |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> NothingHappenned))
+                                |> Maybe.withDefault Cmd.none
                     in
-                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, cmd )
+                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, Cmd.batch [ cmd1, cmd2 ] )
 
         DragDropMsg ddMsg ->
             ( { model | dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )

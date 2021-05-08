@@ -31,6 +31,7 @@ appendEntry : ID -> Entry.ID -> LanesCollection -> LanesCollection
 appendEntry laneId entryId collection =
     Dict.update laneId (Maybe.map (Lane.append entryId)) collection
 
+
 update : Lane -> LanesCollection -> LanesCollection
 update lane collection =
     Dict.update lane.id (Maybe.map (always lane)) collection
@@ -44,6 +45,13 @@ delete =
 get : ID -> LanesCollection -> Maybe Lane
 get =
     Dict.get
+
+
+getByEntry : Entry.ID -> LanesCollection -> Maybe Lane
+getByEntry entryId collection =
+    Dict.values collection
+        |> List.filter (\lane -> List.any (\id -> id == entryId) lane.entries)
+        |> List.head
 
 
 decode : Json.Decode.Decoder LanesCollection
