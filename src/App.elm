@@ -12,6 +12,7 @@ import LanesCollection as LanesCollection
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 import Maybe.Extra exposing (isJust)
+import Task
 
 
 type alias Model =
@@ -37,6 +38,7 @@ type Msg
     | NothingHappenned
     | DragDropMsg DD.Msg
     | EntryDropped DD.Msg
+    | SaveLaneUpdate Lane.ID Msg
 
 
 type alias Env =
@@ -151,7 +153,7 @@ update env msg model =
                             model.dragDrop.overLane
 
                         laneWithEntryRemoved =
-                            LanesCollection.getByEntry entryId model.lanes
+                            LanesCollection.getByEntry entryId model.lanes |> Maybe.map .id
 
                         lanes =
                             Dict.map
@@ -172,22 +174,28 @@ update env msg model =
                                 )
                                 model.lanes
 
-                        cmd1 =
-                            laneId
-                                |> Maybe.andThen (\id -> LanesCollection.get id lanes)
-                                |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> NothingHappenned))
-                                |> Maybe.withDefault Cmd.none
+                        saveRemoval =
+                            laneWithEntryRemoved |> Maybe.map (\i -> SaveLaneUpdate i NothingHappenned) |> Maybe.withDefault NothingHappenned
 
-                        cmd2 =
-                            laneWithEntryRemoved
-                                |> Maybe.andThen (\lane -> LanesCollection.get lane.id lanes)
-                                |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> NothingHappenned))
-                                |> Maybe.withDefault Cmd.none
+                        saveInsertion =
+                            laneId |> Maybe.map (\i -> SaveLaneUpdate i saveRemoval) |> Maybe.withDefault NothingHappenned
+
+                        cmd =
+                            Task.succeed () |> Task.perform (\_ -> saveInsertion)
                     in
-                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, Cmd.batch [ cmd1, cmd2 ] )
+                    ( { model | lanes = lanes, dragDrop = DD.update ddMsg model.dragDrop }, cmd )
 
         DragDropMsg ddMsg ->
             ( { model | dragDrop = DD.update ddMsg model.dragDrop }, Cmd.none )
+
+        SaveLaneUpdate laneId msg_ ->
+            let
+                cmd =
+                    LanesCollection.get laneId model.lanes
+                        |> Maybe.map (env.lanesRepo.update ErrorOccured (\_ -> msg_))
+                        |> Maybe.withDefault Cmd.none
+            in
+            ( model, cmd )
 
 
 view : Model -> Html Msg
