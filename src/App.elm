@@ -203,7 +203,7 @@ view model =
     div []
         [ div [ class "flex" ]
             [ div [ class "p-1 flex-1" ] [ h1 [ class "text-xl" ] [ text "Mini Kanban" ] ]
-            , div [ class "p-1" ] [ button [ class "p-1", onClick AddLane ] [ text "➕" ] ]
+            , div [ class "p-1" ] [ button [ class "p-1", onClick AddLane, title "Add lane" ] [ text "➕" ] ]
             ]
         , div [ class "flex" ] (Dict.values model.lanes |> map (viewLane model.dragDrop model.entries))
         , div [] [ div [ style "color" "red" ] [ text model.error ] ]
@@ -228,8 +228,8 @@ viewLane ddModel entries lane =
         )
         (div [ class "flex" ]
             [ input [ value lane.title, onInput (LaneTitleChanged lane.id), class "flex-grow text-xl p-1" ] []
-            , button [ onClick (AddEntry lane.id) ] [ text "➕" ]
-            , button [ onClick (LaneDeleted lane.id) ] [ text "🗑️" ]
+            , button [ onClick (AddEntry lane.id), title "Add entry" ] [ text "➕" ]
+            , button [ onClick (LaneDeleted lane.id), title "Delete lane" ] [ text "🗑️" ]
             ]
             :: viewEntries
         )
@@ -263,7 +263,7 @@ viewEntry ddModel laneId index entry =
         )
         [ div (class "w-full flex" :: pointerEvents)
             [ input [ value entry.title, onInput (EntryTitleChanged entry.id), class "flex-grow" ] []
-            , button [ onClick (EntryDeleted entry.id) ] [ text "🗑️" ]
+            , button [ onClick (EntryDeleted entry.id), title "Delete entry" ] [ text "🗑️" ]
             ]
         ]
 
