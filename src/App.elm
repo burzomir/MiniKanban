@@ -4,11 +4,11 @@ import Dict
 import DragDrop as DD
 import EntriesCollection exposing (EntriesCollection)
 import Entry exposing (Entry, ID, Title)
-import Html exposing (Html, button, div, h1, h3, input, text)
+import Html exposing (Html, button, div, h1, input, text)
 import Html.Attributes exposing (class, draggable, style, title, value)
 import Html.Events exposing (onClick, onInput)
 import Lane
-import LanesCollection exposing (LanesCollection)
+import LanesCollection as LanesCollection
 import List exposing (map)
 import Maybe exposing (Maybe(..))
 import Maybe.Extra exposing (isJust)
