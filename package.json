@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "parcel index.html",
-    "build-github-pages": "rm -rf .parcel-cache && parcel build index.html --dist-dir ./docs",
+    "build-github-pages": "rm -rf .parcel-cache && parcel build index.html --dist-dir ./docs --public-url \"/MiniKanban\"",
     "fix-github-pages-build": "rm -rf ./docs && mkdir docs && mv index.* docs && git restore index.html"
   },
   "keywords": [],
