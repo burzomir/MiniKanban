@@ -1,4 +1,4 @@
-module MockApiEntriesRepo exposing (mockApiEntriesRepo)
+module HttpEntriesRepo exposing (httpEntriesRepo)
 
 import App exposing (EntriesRepo)
 import EntriesCollection
@@ -6,20 +6,28 @@ import Entry
 import Http
 
 
+type alias BaseURL =
+    String
 
-mockApiEntriesRepo : EntriesRepo String msg
-mockApiEntriesRepo = 
-    { create = createEntry
-    , update = updateEntry
-    , delete = deleteEntryFromApi
-    , getAll = getAllEntries
+
+entriesURL : BaseURL -> String
+entriesURL baseURL =
+    baseURL ++ "/entries"
+
+
+httpEntriesRepo : BaseURL -> EntriesRepo String msg
+httpEntriesRepo baseURL =
+    { create = createEntry baseURL
+    , update = updateEntry baseURL
+    , delete = deleteEntryFromApi baseURL
+    , getAll = getAllEntries baseURL
     }
 
 
-createEntry : (String -> msg) -> (Entry.Entry -> msg) -> Cmd msg
-createEntry errMsg okMsg =
+createEntry : BaseURL -> (String -> msg) -> (Entry.Entry -> msg) -> Cmd msg
+createEntry baseUrl errMsg okMsg =
     Http.post
-        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos"
+        { url = baseUrl |> entriesURL
         , body = Http.emptyBody
         , expect = Http.expectJson (processEntryCreationResult errMsg okMsg) Entry.decode
         }
@@ -40,10 +48,10 @@ processEntryCreationResult errMsg okMsg res =
             okMsg entry
 
 
-getAllEntries : (String -> msg) -> (EntriesCollection.EntriesCollection -> msg) -> Cmd msg
-getAllEntries errMsg okMsg =
+getAllEntries : BaseURL -> (String -> msg) -> (EntriesCollection.EntriesCollection -> msg) -> Cmd msg
+getAllEntries baseURL errMsg okMsg =
     Http.get
-        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos"
+        { url = baseURL |> entriesURL
         , expect = Http.expectJson (processAllEntriesResult errMsg okMsg) EntriesCollection.decode
         }
 
@@ -63,10 +71,10 @@ processAllEntriesResult errMsg okMsg res =
             okMsg entries
 
 
-updateEntry : (String -> msg) -> (Entry.Entry -> msg) -> Entry.Entry -> Cmd msg
-updateEntry errMsg okMsg entry =
+updateEntry : BaseURL -> (String -> msg) -> (Entry.Entry -> msg) -> Entry.Entry -> Cmd msg
+updateEntry baseURL errMsg okMsg entry =
     Http.request
-        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos/" ++ entry.id
+        { url = (baseURL |> entriesURL) ++ entry.id
         , method = "PUT"
         , headers = []
         , body = Http.jsonBody <| Entry.encode entry
@@ -91,10 +99,10 @@ processUpdateEntryResult errMsg okMsg res =
             okMsg entry
 
 
-deleteEntryFromApi : (String -> msg) -> (Entry.Entry -> msg) -> Entry.ID -> Cmd msg
-deleteEntryFromApi errMsg okMsg id =
+deleteEntryFromApi : BaseURL -> (String -> msg) -> (Entry.Entry -> msg) -> Entry.ID -> Cmd msg
+deleteEntryFromApi baseURL errMsg okMsg id =
     Http.request
-        { url = "https://60662038b8fbbd0017568155.mockapi.io/todos/" ++ id
+        { url = (baseURL |> entriesURL) ++ id
         , method = "DELETE"
         , headers = []
         , body = Http.emptyBody
