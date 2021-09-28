@@ -2,7 +2,6 @@
   "name": "guide",
   "version": "1.0.0",
   "description": "",
-  "main": "index.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "parcel index.html",
@@ -14,10 +13,10 @@
   "license": "ISC",
   "devDependencies": {
     "@babel/core": "^7.14.3",
-    "@parcel/transformer-elm": "^2.0.0-beta.2",
+    "@parcel/transformer-elm": "^2.0.0-rc.0",
     "autoprefixer": "^10.2.5",
     "elm": "^0.19.1-5",
-    "parcel": "^2.0.0-beta.2",
+    "parcel": "^2.0.0-rc.0",
     "postcss": "^8.2.15",
     "tailwindcss": "^2.1.2"
   }
